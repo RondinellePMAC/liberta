@@ -20,12 +20,26 @@ continentes = {
     "América do Sul": ["Serie A (Brasil)", "Libertadores"]
 }
 
-def buscar_times(league_id):
+def buscar_times(league_id, liga_nome):
     response = requests.get(f"{BASE_URL}/teams", headers=HEADERS, params={"league": league_id, "season": 2023})
     if response.status_code == 200:
-        data = response.json()['response']
-        return {item['team']['name']: item['team']['id'] for item in data}
-    return {}
+        data = response.json().get('response', [])
+        if data:
+            return {item['team']['name']: item['team']['id'] for item in data}
+        else:
+            st.warning("Nenhum time encontrado na API. Buscando fonte alternativa...")
+    else:
+        st.warning(f"Erro ao buscar times: {response.status_code} - {response.reason}")
+    return buscar_times_alternativo(liga_nome)
+
+def buscar_times_alternativo(liga_nome):
+    times_por_liga = {
+        "Premier League": ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Leeds United", "Leicester City", "Liverpool", "Manchester City", "Manchester United", "Newcastle United", "Nottingham Forest", "Southampton", "Tottenham Hotspur", "West Ham United", "Wolverhampton Wanderers"],
+        "La Liga": ["Real Madrid", "Barcelona", "Atletico Madrid", "Sevilla", "Real Sociedad", "Villarreal", "Valencia", "Real Betis"],
+        "Serie A (Brasil)": ["Flamengo", "Palmeiras", "Corinthians", "São Paulo", "Grêmio", "Internacional", "Atlético Mineiro", "Cruzeiro"],
+        "Libertadores": ["Boca Juniors", "River Plate", "Palmeiras", "Flamengo", "Atlético Nacional", "Peñarol"]
+    }
+    return {nome: idx for idx, nome in enumerate(times_por_liga.get(liga_nome, []), start=1)}
 
 def buscar_estatisticas_time(team_id, league_id=39, season=2023):
     response = requests.get(
@@ -86,7 +100,7 @@ liga_nome = st.selectbox("🏆 Escolha a liga", continentes[continente])
 liga_id = ligas_disponiveis[liga_nome]
 
 with st.spinner("Carregando times da liga selecionada..."):
-    times = buscar_times(liga_id)
+    times = buscar_times(liga_id, liga_nome)
 
 if times:
     time_casa = st.selectbox("🏠 Time Mandante", list(times.keys()))
@@ -119,6 +133,6 @@ if times:
 
         st.altair_chart(chart, use_container_width=True)
 else:
-    st.error("Erro ao carregar times. Verifique sua chave de API.")
+    st.error("Erro ao carregar times. Verifique sua chave de API ou tente novamente mais tarde.")
 
 st.caption("Análise baseada no modelo mais eficiente e comprovado para apostas esportivas")
